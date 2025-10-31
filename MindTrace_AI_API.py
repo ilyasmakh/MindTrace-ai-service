@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query, Body, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.responses import JSONResponse
@@ -17,6 +18,15 @@ app = FastAPI(
     title="MindTrace AI Service",
     description="AI-driven service that retrieves, analyzes, and answers questions about project documents using contextual search and embeddings",
     version="1.0.0"
+)
+
+# Add CORS middleware configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 load_dotenv()
