@@ -1,23 +1,15 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
+import re
 
 load_dotenv()
-
 openai_client = OpenAI()
-
 
 def analyze_requirement_changes(old_description: str, new_description: str) -> dict:
     """
-    Analyze changes between two Jira ticket descriptions and return a structured JSON.
-
-    Args:
-        old_description (str): Previous ticket description.
-        new_description (str): Updated ticket description.
-
-    Returns:
-        dict: JSON containing a summary of changes, detailed change information,
-              and the original descriptions.
+    Analyze changes between two Jira ticket descriptions and return a structured JSON,
+    including development effort estimation and cost recalculation impact.
     """
 
     prompt = f"""
@@ -38,7 +30,9 @@ def analyze_requirement_changes(old_description: str, new_description: str) -> d
        Use phrases like "The client now wants..." to reflect intent.
     3. Categorize changes by type if applicable: "Added feature", "Modified feature", "Removed feature", "Priority change", "Technical detail change".
     4. Provide recommendations or key points for the development team if relevant.
-    5. Respond in french if the descriptions are in french.
+    5. Estimate the **development effort** required (e.g., Low/Medium/High + estimated hours).
+    6. Estimate the **cost recalculation impact** (e.g., Low/Medium/High + short justification).
+    7. Respond in french if the descriptions are in french.
 
     Return the result in JSON format exactly like this:
 
@@ -50,7 +44,15 @@ def analyze_requirement_changes(old_description: str, new_description: str) -> d
                 "description": "Detailed description of the change"
             }}
         ],
-        "recommendations": "Suggestions or important points for the team"
+        "recommendations": "Suggestions or important points for the team",
+        "effort_estimation": {{
+            "effort_level": "Low/Medium/High",
+            "estimated_hours": 0
+        }},
+        "cost_recalculation": {{
+            "impact_level": "Low/Medium/High",
+            "reason": "Short justification for why a cost recalculation is or isn't needed"
+        }}
     }}
     """
 
@@ -63,12 +65,15 @@ def analyze_requirement_changes(old_description: str, new_description: str) -> d
         temperature=0.3
     )
 
-    answer = response.choices[0].message.content
+    answer = response.choices[0].message.content.strip()
+
+    # 🔹 Nettoyage : retirer les balises ```json ... ```
+    cleaned_answer = re.sub(r"^```(?:json)?|```$", "", answer.strip(), flags=re.MULTILINE).strip()
 
     try:
-        result_json = json.loads(answer)
-    except:
-        result_json = {"raw_text": answer}
+        result_json = json.loads(cleaned_answer)
+    except json.JSONDecodeError:
+        result_json = {"raw_text": answer}  # on garde la version brute si parsing échoue
 
     # Ajouter les descriptions originales dans le JSON
     result_json["old_description"] = old_description
