@@ -2,9 +2,10 @@ from fastapi import FastAPI, Query, Body, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.responses import JSONResponse
-from Summarizers.SummarizeTenderByBD import SummarizeTenderByBD
 from dotenv import load_dotenv
 import os
+
+from TraceSpecAdjustment.traceSpecAdjustment import analyze_requirement_changes
 from doclingAnalyzer.chat import ask_question
 from doclingAnalyzer.extraction import extract_document
 from doclingAnalyzer.chunking import extract_and_chunk
@@ -154,3 +155,17 @@ async def delete_document(collection: str, project_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur suppression: {str(e)}")
 
+class RequirementChangeRequest(BaseModel):
+    old_desc: str
+    new_desc: str
+
+@app.post("/api/ai-analyze/analyze-spec-changes")
+async def analyze_spec_changes(request: RequirementChangeRequest):
+    """
+    Analyze requirement changes between two Jira ticket descriptions.
+    """
+    changes = analyze_requirement_changes(
+        old_description=request.old_desc,
+        new_description=request.new_desc
+    )
+    return changes
